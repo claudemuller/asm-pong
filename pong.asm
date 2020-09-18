@@ -6,6 +6,10 @@ data segment para 'data'
     ball_x dw 0ah       ;set x pos 
     ball_y dw 0ah       ;set y pos
     ball_size dw 04h    ;size of ball (4x4)
+    ball_vel_x dw 05h
+    ball_vel_y dw 02h
+
+    time_aux db 0       ;variable used to check time changed
 
     comment @
         ;dw is a 16bit number the above two are used in 16bit registers (cx,dx)
@@ -24,6 +28,28 @@ code segment para 'code'
         pop ax          ;release top item of stack
         pop ax          ;pop again
 
+        call clear_screen
+
+        check_time:
+            mov ah,2ch      ;get system time - ch=hour, cl=minute, dh=sec, dl=1/100sec
+            int 21h
+
+            cmp dl,time_aux ;is current time equl to previous time (time_aux)
+            je check_time   ;if it is the same, check again
+
+            mov time_aux,dl ;update time_aux with time now
+
+            call clear_screen
+
+            call move_ball
+            call draw_ball  ;draw only if 1/100 has passed
+
+            jmp check_time
+
+        ret
+    main endp
+
+    clear_screen proc near
         mov ah,00h      ;set conf to video mode
         mov al,13h      ;choose video mode
         int 10h         ;execute conf/command with int
@@ -32,11 +58,18 @@ code segment para 'code'
         mov bh,00h      ;^
         mov dl,00h      ;set to black
         int 10h         ;execute conf/command with int
+    
+        ret
+    clear_screen endp
 
-        call draw_ball
+    move_ball proc near
+        mov ax,ball_vel_x
+        add ball_x,ax
+        mov ax,ball_vel_y
+        add ball_y,ax
 
         ret
-    main endp
+    move_ball endp
 
     draw_ball proc near
         mov cx,ball_x   ;set initial x to ball_x ;cx is a 16bit register
