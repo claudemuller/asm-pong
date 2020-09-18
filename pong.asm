@@ -3,13 +3,16 @@ stack segment para stack
 stack ends
 
 data segment para 'data'
-    ball_x dw 0ah       ;set x pos 
-    ball_y dw 0ah       ;set y pos
-    ball_size dw 04h    ;size of ball (4x4)
+    window_width dw 140h    ;width of the window (320px)
+    window_height dw 0c8h   ;height of the window (200px)
+    window_bounds dw 06h    ;used to check collisions early
+    time_aux db 0           ;variable used to check time changed
+
+    ball_x dw 0ah           ;set x pos 
+    ball_y dw 0ah           ;set y pos
+    ball_size dw 04h        ;size of ball (4x4)
     ball_vel_x dw 05h
     ball_vel_y dw 02h
-
-    time_aux db 0       ;variable used to check time changed
 
     comment @
         ;dw is a 16bit number the above two are used in 16bit registers (cx,dx)
@@ -63,10 +66,39 @@ code segment para 'code'
     clear_screen endp
 
     move_ball proc near
-        mov ax,ball_vel_x
+        mov ax,ball_vel_x       ;add velocity to y
         add ball_x,ax
-        mov ax,ball_vel_y
+
+        mov ax,window_bounds
+        cmp ball_x,ax           ;check ball_x hitting left of window
+        jl neg_velocity_x       ;if ball_x Less than 0
+        mov ax,window_width
+        sub ax,ball_size
+        sub ax,window_bounds
+        cmp ball_x,ax           ;check ball_x hitting right of window
+        jg neg_velocity_x
+
+        mov ax,ball_vel_y       ;add velocity to x
         add ball_y,ax
+
+        mov ax,window_bounds
+        cmp ball_y,ax           ;check ball_y hitting left of window
+        jl neg_velocity_y       ;if ball_y Less than 0
+        mov ax,window_height
+        sub ax,ball_size
+        sub ax,window_bounds
+        cmp ball_y,ax           ;check ball_y hitting right of window
+        jg neg_velocity_y
+
+        ret
+
+        neg_velocity_x:
+            neg ball_vel_x ;negate vel_x
+            ret
+
+        neg_velocity_y:
+            neg ball_vel_y ;negate vel_y
+            ret
 
         ret
     move_ball endp
