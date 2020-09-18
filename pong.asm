@@ -8,11 +8,21 @@ data segment para 'data'
     window_bounds dw 06h    ;used to check collisions early
     time_aux db 0           ;variable used to check time changed
 
+    ball_org_x dw 0a0h
+    ball_org_y dw 064h
     ball_x dw 0ah           ;set x pos 
     ball_y dw 0ah           ;set y pos
     ball_size dw 04h        ;size of ball (4x4)
     ball_vel_x dw 05h
     ball_vel_y dw 02h
+
+    paddle_left_x dw 0ah
+    paddle_left_y dw 0ah
+    paddle_right_x dw 130h
+    paddle_right_y dw 0ah
+    
+    paddle_width dw 05h
+    paddle_height dw 1fh
 
     comment @
         ;dw is a 16bit number the above two are used in 16bit registers (cx,dx)
@@ -32,6 +42,7 @@ code segment para 'code'
         pop ax          ;pop again
 
         call clear_screen
+        call reset_ball_position
 
         check_time:
             mov ah,2ch      ;get system time - ch=hour, cl=minute, dh=sec, dl=1/100sec
@@ -46,6 +57,7 @@ code segment para 'code'
 
             call move_ball
             call draw_ball  ;draw only if 1/100 has passed
+            call draw_paddles
 
             jmp check_time
 
@@ -65,18 +77,27 @@ code segment para 'code'
         ret
     clear_screen endp
 
+    reset_ball_position proc near
+        mov ax,ball_org_x
+        mov ball_x,ax
+        mov ax,ball_org_y
+        mov ball_y,ax
+
+        ret
+    reset_ball_position endp
+
     move_ball proc near
         mov ax,ball_vel_x       ;add velocity to y
         add ball_x,ax
 
         mov ax,window_bounds
         cmp ball_x,ax           ;check ball_x hitting left of window
-        jl neg_velocity_x       ;if ball_x Less than 0
+        jl reset_ball           ;if ball_x Less than 0
         mov ax,window_width
         sub ax,ball_size
         sub ax,window_bounds
         cmp ball_x,ax           ;check ball_x hitting right of window
-        jg neg_velocity_x
+        jg reset_ball
 
         mov ax,ball_vel_y       ;add velocity to x
         add ball_y,ax
@@ -92,8 +113,8 @@ code segment para 'code'
 
         ret
 
-        neg_velocity_x:
-            neg ball_vel_x ;negate vel_x
+        reset_ball:
+            call reset_ball_position
             ret
 
         neg_velocity_y:
@@ -129,6 +150,56 @@ code segment para 'code'
 
         ret
     draw_ball endp
+
+    draw_paddles proc near
+        mov cx,paddle_left_x                    ;set initial x
+        mov dx,paddle_left_y                    ;set initial y
+
+        draw_paddle_left_horizontal:
+            mov ah,0ch                          ;set conf to draw pixel
+            mov al,0fh                          ;set colour to white
+            mov bh,00h                          ;set page number
+            int 10h
+
+            inc cx                              ;increment x
+            mov ax,cx                           ;store cx (x) in ax temporarily
+            sub ax,paddle_left_x                ;subtract paddle_left_x from ax
+            cmp ax,paddle_width                 ;compare the result of the above with paddle width
+            jng draw_paddle_left_horizontal     ;jump if x Not Greater than than paddle_size
+
+            mov cx,paddle_left_x                ;change cx reg back to original x
+
+            inc dx                              ;increment y value
+            mov ax,dx                           ;move dx (y) in ax temporarily
+            sub ax,paddle_left_y                ;subtract paddle_left_y into ax
+            cmp ax,paddle_height                ;compare the result of above with paddle height
+            jng draw_paddle_left_horizontal     ;jump if y Not Greater than paddle_size
+
+        mov cx,paddle_right_x                   ;set initial x
+        mov dx,paddle_right_y                   ;set initial y
+
+        draw_paddle_right_horizontal:
+            mov ah,0ch                          ;set conf to draw pixel
+            mov al,0fh                          ;set colour to white
+            mov bh,00h                          ;set page number
+            int 10h
+
+            inc cx                              ;increment x
+            mov ax,cx                           ;store cx (x) in ax temporarily
+            sub ax,paddle_right_x               ;subtract paddle_right_x from ax
+            cmp ax,paddle_width                 ;compare the result of the above with paddle width
+            jng draw_paddle_right_horizontal    ;jump if x Not Greater than than paddle_size
+
+            mov cx,paddle_right_x               ;change cx reg back to original x
+
+            inc dx                              ;increment y value
+            mov ax,dx                           ;move dx (y) in ax temporarily
+            sub ax,paddle_right_y               ;subtract paddle_right_y into ax
+            cmp ax,paddle_height                ;compare the result of above with paddle height
+            jng draw_paddle_right_horizontal    ;jump if y Not Greater than paddle_size
+
+        ret
+    draw_paddles endp
 code ends
 
 end
